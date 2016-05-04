@@ -206,6 +206,13 @@ module Bosh::AzureCloud
       end
     end
 
+    def get_blob(storage_account_name, container_name, blob_name, options)
+      @logger.info("get_blob(#{storage_account_name}, #{container_name}, #{blob_name}, #{options})")
+      initialize_blob_client(storage_account_name) do
+        @blob_service_client.get_blob(container_name, blob_name, options)
+      end
+    end
+
     private
 
     def read_content_func(file_path, file_blocks, block_size, thread_num, finish_flag)

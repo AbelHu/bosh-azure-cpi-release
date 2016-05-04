@@ -1,8 +1,9 @@
 module Bosh::AzureCloud
   class DiskManager
-    DISK_CONTAINER       = 'bosh'
-    OS_DISK_PREFIX       = 'bosh-os'
-    DATA_DISK_PREFIX     = 'bosh-data'
+    DISK_CONTAINER         = 'bosh'
+    OS_DISK_PREFIX         = 'bosh-os'
+    DATA_DISK_PREFIX       = 'bosh-data'
+    EPHEMERAL_DISK_POSTFIX = 'ephemeral'
 
     include Bosh::Exec
     include Helpers
@@ -74,6 +75,15 @@ module Bosh::AzureCloud
       disk_name
     end
 
+    def create_ephemeral_disk(instance_id, size)
+      @logger.info("create_ephemeral_disk(#{instance_id}, #{size})")
+      ephemeral_disk_name = generate_ephemeral_disk_name(instance_id)
+      @logger.info("Start to create an empty vhd blob: blob_name: #{ephemeral_disk_name}.vhd")
+      storage_account_name = get_storage_account_name(ephemeral_disk_name)
+      @blob_manager.create_empty_vhd_blob(storage_account_name, DISK_CONTAINER, "#{ephemeral_disk_name}.vhd", size)
+      ephemeral_disk_name
+    end
+
     def has_disk?(disk_name)
       @logger.info("has_disk?(#{disk_name})")
       storage_account_name = get_storage_account_name(disk_name)
@@ -96,6 +106,24 @@ module Bosh::AzureCloud
     # bosh-os-STORAGEACCOUNTNAME-AGENTID
     def generate_os_disk_name(instance_id)
       "#{OS_DISK_PREFIX}-#{instance_id}"
+    end
+
+    # bosh-os-STORAGEACCOUNTNAME-AGENTID-ephemeral
+    def generate_ephemeral_disk_name(instance_id)
+      "#{OS_DISK_PREFIX}-#{instance_id}-#{EPHEMERAL_DISK_POSTFIX}"
+    end
+
+    def get_disk_uuid(disk_name)
+      @logger.info("get_disk_uuid(#{disk_name})")
+      storage_account_name = get_storage_account_name(disk_name)
+      blob_properties = @blob_manager.get_blob_properties(storage_account_name, DISK_CONTAINER, "#{disk_name}.vhd")
+      uuid_start_index = blob_properties[:content_length] - 512 + 68
+      options = {
+        :start_range => uuid_start_index,
+        :end_range   => uuid_start_index + 15
+      }
+      blob, content = @blob_manager.get_blob(storage_account_name, DISK_CONTAINER, "#{disk_name}.vhd", options)
+      content.unpack('H*')[0]
     end
 
     private

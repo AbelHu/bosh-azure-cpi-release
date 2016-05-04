@@ -16,6 +16,11 @@ See [development doc](docs/development.md).
 
 ## CHANGELOG
 ```
+# 2015-05-04
+- CPI changes
+  - Remove use_temporary_disk and always use a data disk as the ephemeral disk.
+  - Use last 6 bytes of disk uuid as the identifier to map data disks.
+
 # 2015-04-25
 - CPI changes
   - Support to use a data disk as the ephemeral disk.

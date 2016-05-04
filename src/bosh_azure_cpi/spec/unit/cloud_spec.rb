@@ -35,6 +35,7 @@ describe Bosh::AzureCloud::Cloud do
   let(:stemcell_id) { "fake-stemcell-id" }
   let(:agent_id) { "fake-agent-id" }
   let(:snapshot_id) { 'fake-snapshot-id' }
+  let(:disk_identifier) { 'fake-disk-identifier' }
 
   describe '#initialize' do
     context 'when all the required configurations are present' do
@@ -141,7 +142,7 @@ describe Bosh::AzureCloud::Cloud do
       allow(stemcell_manager).to receive(:get_stemcell_uri).
         with(storage_account_name, stemcell_id).
         and_return(stemcell_uri)
-      allow(vm_manager).to receive(:create).and_return(instance_id)
+      allow(vm_manager).to receive(:create).and_return([instance_id, disk_identifier])
       allow(Bosh::AzureCloud::NetworkConfigurator).to receive(:new).
           with(networks_spec).
           and_return(network_configurator)
@@ -494,11 +495,9 @@ describe Bosh::AzureCloud::Cloud do
   end
 
   describe "#attach_disk" do
-    let(:volume_name) { '/dev/sdc' }
-
     before do
       allow(vm_manager).to receive(:attach_disk).with(instance_id, disk_id).
-        and_return(volume_name)
+        and_return(disk_identifier)
     end
 
     it 'attaches the disk to the vm' do
@@ -507,7 +506,9 @@ describe Bosh::AzureCloud::Cloud do
         'foo' => 'bar',
         'disks' => {
           'persistent' => {
-            disk_id => volume_name
+            disk_id => {
+              'id' => disk_identifier
+            }
           }
         }
       }
@@ -542,15 +543,17 @@ describe Bosh::AzureCloud::Cloud do
   end
 
   describe "#detach_disk" do
-    let(:volume_name) { '/dev/sdf' }
-  
     it 'detaches the disk from the vm' do
       old_settings = {
         "foo" => "bar",
         "disks" => {
           "persistent" => {
-            "fake-disk-id" => "/dev/sdf",
-            "v-deadbeef" => "/dev/sdg"
+            disk_id => {
+              'id' => disk_identifier
+            },
+            "v-deadbeef" => {
+              'id' => 'foo'
+            }
           }
         }
       }
@@ -559,7 +562,9 @@ describe Bosh::AzureCloud::Cloud do
         "foo" => "bar",
         "disks" => {
           "persistent" => {
-            "v-deadbeef" => "/dev/sdg"
+            "v-deadbeef" => {
+              'id' => 'foo'
+            }
           }
         }
       }
@@ -579,13 +584,9 @@ describe Bosh::AzureCloud::Cloud do
   describe "#get_disks" do
     let(:data_disks) {
       [
-        {
-          :name => "/dev/sdc",
-        }, {
-          :name => "/dev/sde",
-        }, {
-          :name => "/dev/sdf",
-        }
+        { :name => 'foo' }, 
+        { :name => 'bar' },
+        { :name => 'tar' }
       ]
     }
     let(:instance) {
@@ -605,7 +606,7 @@ describe Bosh::AzureCloud::Cloud do
           with(instance_id).
           and_return(instance)
 
-        expect(cloud.get_disks(instance_id)).to eq(["/dev/sdc", "/dev/sde", "/dev/sdf"])
+        expect(cloud.get_disks(instance_id)).to eq(["foo", "bar", "tar"])
       end
     end
 

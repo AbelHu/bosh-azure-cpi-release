@@ -128,7 +128,6 @@ module Bosh::AzureCloud
     # * +:os_vhd_uri+           - String. The URI of the OS disk for the virtual machine instance.
     # * +:ephemeral_disk_name+  - String. The name of the ephemeral disk for the virtual machine instance.
     # * +:ephemeral_disk_uri+   - String. The URI of the ephemeral disk for the virtual machine instance.
-    # * +:ephemeral_disk_size+  - Integer. The size in GiB of the ephemeral disk for the virtual machine instance.
     # * #:caching+              - String. The caching option of the OS disk. Caching option: None, ReadOnly or ReadWrite
     # * +:ssh_cert_data+        - String. The content of SSH certificate.
     #
@@ -190,12 +189,11 @@ module Bosh::AzureCloud
         }
       end
 
-      unless vm_params[:ephemeral_disk_size].nil?
+      unless vm_params[:ephemeral_disk_uri].nil?
         vm['properties']['storageProfile']['dataDisks'].push({
           'name'         => vm_params[:ephemeral_disk_name],
           'lun'          => 0,
-          'createOption' => 'Empty',
-          'diskSizeGB'   => vm_params[:ephemeral_disk_size],
+          'createOption' => 'Attach',
           'caching'      => 'ReadWrite',
           'vhd'          => {
             'uri' => vm_params[:ephemeral_disk_uri]

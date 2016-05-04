@@ -68,7 +68,6 @@ module Bosh::AzureCloud
     #    "platform_fault_domain_count" => 3,
     #    "security_group" => "nsg-bosh",
     #    "ephemeral_disk" => {
-    #      "use_temporary_disk" => false,
     #      "size" => 20480, # disk size in MB
     #    }
     #  }
@@ -103,20 +102,13 @@ module Bosh::AzureCloud
         end
 
         storage_account = @azure_client2.get_storage_account_by_name(storage_account_name) if storage_account.nil?
-        instance_id = @vm_manager.create(
+        instance_id, ephemeral_disk_identifier = @vm_manager.create(
           agent_id,
           storage_account,
           @stemcell_manager.get_stemcell_uri(storage_account_name, stemcell_id),
           resource_pool,
           NetworkConfigurator.new(networks))
-        @logger.info("Created new vm '#{instance_id}'")
-
-        ephemeral_disk = "/dev/sdc"
-        if resource_pool.has_key?('ephemeral_disk')
-          if resource_pool['ephemeral_disk']['use_temporary_disk']
-            ephemeral_disk = "/dev/sdb"
-          end
-        end
+        @logger.info("Created new vm `#{instance_id}', ephemeral disk identifier is `#{ephemeral_disk_identifier}'")
 
         begin
           registry_settings = initial_agent_settings(
@@ -125,7 +117,7 @@ module Bosh::AzureCloud
             networks,
             env,
             "/dev/sda",
-            ephemeral_disk
+            ephemeral_disk_identifier
           )
           registry.update_settings(instance_id, registry_settings)
 
@@ -255,15 +247,15 @@ module Bosh::AzureCloud
     # @return [void]
     def attach_disk(instance_id, disk_id)
       with_thread_name("attach_disk(#{instance_id},#{disk_id})") do
-        volume_name = @vm_manager.attach_disk(instance_id, disk_id)
+        disk_identifier = @vm_manager.attach_disk(instance_id, disk_id)
 
         update_agent_settings(instance_id) do |settings|
           settings["disks"] ||= {}
           settings["disks"]["persistent"] ||= {}
-          settings["disks"]["persistent"][disk_id] = volume_name
+          settings["disks"]["persistent"][disk_id] = { 'id' => disk_identifier }
         end
 
-        @logger.info("Attached `#{disk_id}' to `#{instance_id}'")
+        @logger.info("Attached `#{disk_id}' to `#{instance_id}', device identifier is `#{disk_identifier}'")
       end
     end
 
@@ -394,7 +386,6 @@ module Bosh::AzureCloud
     # from AZURE registry (also a BOSH component) on a target instance. Disk
     # conventions for Azure are:
     # system disk: /dev/sda
-    # ephemeral disk: /dev/sdb for CF VMs, /dev/sdc for BOSH VMs
     #
     # @param [String] agent_id Agent id (will be picked up by agent to
     #   assume its identity
@@ -402,9 +393,9 @@ module Bosh::AzureCloud
     # @param [Hash] network_spec Agent network spec
     # @param [Hash] environment
     # @param [String] root_device_name root device, e.g. /dev/sda
-    # @param [String] ephemeral_device_name ephemeral device, e.g. /dev/sdb
+    # @param [String] ephemeral_device_id ephemeral device id
     # @return [Hash]
-    def initial_agent_settings(agent_id, vm_name, network_spec, environment, root_device_name, ephemeral_device_name)
+    def initial_agent_settings(agent_id, vm_name, network_spec, environment, root_device_name, ephemeral_device_id)
       settings = {
           "vm" => {
               "name" => vm_name
@@ -413,7 +404,9 @@ module Bosh::AzureCloud
           "networks" => agent_network_spec(network_spec),
           "disks" => {
               "system" => root_device_name,
-              "ephemeral" => ephemeral_device_name,
+              "ephemeral" => {
+                "id" => ephemeral_device_id
+              },
               "persistent" => {}
           }
       }
