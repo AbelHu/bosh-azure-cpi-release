@@ -876,6 +876,8 @@ module Bosh::AzureCloud
     def http(uri)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      # Workaround for AzureStack
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       # The default value for read_timeout is 60 seconds.
       # The default value for open_timeout is nil before ruby 2.3.0 so set it to 60 seconds here.
       http.open_timeout = 60
