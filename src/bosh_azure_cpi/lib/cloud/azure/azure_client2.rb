@@ -13,7 +13,8 @@ module Bosh::AzureCloud
   class AzureClient2
     include Helpers
 
-    USER_AGENT     = 'BOSH-AZURE-CPI'
+    USER_AGENT                    = 'BOSH-AZURE-CPI'
+    AZURE_CPI_CORRELATION_ID      = '40464049-8067-45bb-920d-boshazurecpi'
 
     HTTP_CODE_OK                  = 200
     HTTP_CODE_CREATED             = 201
@@ -761,6 +762,7 @@ module Bosh::AzureCloud
       request_body = storage_account.to_json
       request.body = request_body
       request['Content-Length'] = request_body.size
+      request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
       @logger.debug("create_storage_account - request body:\n#{request.body}")
 
       retry_after = 10
@@ -780,6 +782,7 @@ module Bosh::AzureCloud
       uri.query = URI.encode_www_form(params)
       request = Net::HTTP::Get.new(uri.request_uri)
       request.add_field('x-ms-version', api_version)
+      request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
       while true
         retry_after = response['Retry-After'].to_i if response.key?('Retry-After')
         sleep(retry_after)
@@ -894,6 +897,9 @@ module Bosh::AzureCloud
         @logger.debug("get_token - authentication_endpoint: #{uri}")
         request = Net::HTTP::Post.new(uri.request_uri)
         request['Content-Type'] = 'application/x-www-form-urlencoded'
+        request['User-Agent']   = USER_AGENT
+        request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
+
         request.body = URI.encode_www_form(params)
         @logger.debug("get_token - request.header:")
         request.each_header { |k,v| @logger.debug("\t#{k} = #{v}") }
@@ -943,6 +949,7 @@ module Bosh::AzureCloud
         request['User-Agent']    = USER_AGENT
         request['Content-Type']  = 'application/json'
         request['Authorization'] = 'Bearer ' + get_token(refresh_token)
+        request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
         response = http(uri).request(request)
 
         retry_after = response['Retry-After'].to_i if response.key?('Retry-After')
@@ -1029,6 +1036,7 @@ module Bosh::AzureCloud
       request = Net::HTTP::Get.new(uri.request_uri)
       uri.query = URI.encode_www_form(params)
       request.add_field('x-ms-version', options[:api_version])
+      request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
       while true
         retry_after = response['Retry-After'].to_i if response.key?('Retry-After')
         sleep(retry_after)
