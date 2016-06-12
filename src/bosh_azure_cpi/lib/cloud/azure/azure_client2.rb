@@ -866,6 +866,13 @@ module Bosh::AzureCloud
 
     private
 
+    def filter_credential_in_logs(uri)
+      if uri.request_uri.include?('/listKeys')
+        return true
+      end
+      false
+    end
+
     def http(uri)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -899,11 +906,9 @@ module Bosh::AzureCloud
         request['Content-Type'] = 'application/x-www-form-urlencoded'
         request['User-Agent']   = USER_AGENT
         request['x-ms-correlation-request-id'] = AZURE_CPI_CORRELATION_ID
-
         request.body = URI.encode_www_form(params)
         @logger.debug("get_token - request.header:")
         request.each_header { |k,v| @logger.debug("\t#{k} = #{v}") }
-        @logger.debug("get_token - request.body:\n#{request.body}")
 
         response = http(uri).request(request)
         if response.code.to_i == HTTP_CODE_OK
@@ -954,7 +959,12 @@ module Bosh::AzureCloud
 
         retry_after = response['Retry-After'].to_i if response.key?('Retry-After')
         status_code = response.code.to_i
-        @logger.debug("http_get_response - #{retry_count}: #{status_code}\n#{response.body}")
+        if filter_credential_in_logs(uri)
+          @logger.debug("http_get_response - #{retry_count}: #{status_code}. response.body cannot be logged because it may contain credentials.")
+        else
+          @logger.debug("http_get_response - #{retry_count}: #{status_code}\n#{response.body}")
+        end
+
         if status_code == HTTP_CODE_UNAUTHORIZED
           raise AzureUnauthorizedError, "http_get_response - Azure authentication failed: Token is invalid."
         end
