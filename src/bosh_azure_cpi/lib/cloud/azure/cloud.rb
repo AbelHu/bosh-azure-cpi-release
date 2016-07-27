@@ -487,10 +487,10 @@ module Bosh::AzureCloud
     end
 
     def get_disk_path_name(lun)
-      if((lun + 2) < 26)
-        "/dev/sd#{('c'.ord + lun).chr}"
+      if((lun + 1) < 26)
+        "/dev/sd#{('b'.ord + lun).chr}"
       else
-        "/dev/sd#{('a'.ord + (lun + 2 - 26) / 26).chr}#{('a'.ord + (lun + 2) % 26).chr}"
+        "/dev/sd#{('a'.ord + (lun + 1 - 26) / 26).chr}#{('a'.ord + (lun + 1) % 26).chr}"
       end
     end
   end
