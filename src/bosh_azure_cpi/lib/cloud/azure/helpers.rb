@@ -95,9 +95,7 @@ module Bosh::AzureCloud
 
     def get_arm_endpoint(azure_properties)
       if azure_properties['environment'] == 'AzureStack'
-        validate_azure_stack_options(azure_properties)
-        domain = azure_properties['azure_stack_domain']
-        "https://api.#{domain}"
+        "https://#{azure_properties['azure_stack_endpoint_prefix']}.#{azure_properties['azure_stack_domain']}"
       else
         AZURE_ENVIRONMENTS[azure_properties['environment']]['resourceManagerEndpointUrl']
       end
@@ -115,7 +113,6 @@ module Bosh::AzureCloud
       url = nil
       api_version = get_api_version(azure_properties, AZURE_RESOUCE_PROVIDER_ACTIVEDIRECTORY)
       if azure_properties['environment'] == 'AzureStack'
-        validate_azure_stack_options(azure_properties)
         domain = azure_properties['azure_stack_domain']
 
         if azure_properties['azure_stack_authentication']  == 'AzureStack'
@@ -181,15 +178,6 @@ module Bosh::AzureCloud
       debug_mode = false
       debug_mode = azure_properties['debug_mode'] unless azure_properties['debug_mode'].nil?
       debug_mode
-    end
-
-    private
-
-    def validate_azure_stack_options(azure_properties)
-      missing_keys = []
-      missing_keys << "azure_stack_domain" unless azure_properties.has_key?('azure_stack_domain')
-      missing_keys << "azure_stack_authentication" unless azure_properties.has_key?('azure_stack_authentication')
-      raise ArgumentError, "missing configuration parameters for AzureStack > #{missing_keys.join(', ')}" unless missing_keys.empty?
     end
   end
 end
